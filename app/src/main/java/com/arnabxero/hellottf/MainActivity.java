@@ -73,7 +73,22 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setDomStorageEnabled(true);
 
         // Load the URL
-        webView.loadUrl("https://xero-force.vercel.app");
+//        webView.loadUrl("https://app.teamtigerforce.com");
+        // Handle the incoming URL
+        Intent intent = getIntent();
+        String action = intent.getAction();
+        Uri data = intent.getData();
+
+        if (Intent.ACTION_VIEW.equals(action) && data != null) {
+            String url = data.toString();
+            // Check if the URL is from the specified domain
+            if(url.startsWith("https://app.teamtigerforce.com")) {
+                webView.loadUrl(url); // Load the URL in the WebView
+            }
+        } else {
+            // Load a default URL or homepage
+            webView.loadUrl("https://app.teamtigerforce.com");
+        }
 
         // Set up WebView to handle downloads
         webView.setDownloadListener(new DownloadListener() {
