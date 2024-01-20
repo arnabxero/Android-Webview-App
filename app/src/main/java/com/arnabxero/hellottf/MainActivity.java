@@ -12,6 +12,7 @@ import androidx.core.content.FileProvider;
 
 import android.app.Activity;
 import android.app.DownloadManager;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -141,38 +142,95 @@ public class MainActivity extends AppCompatActivity {
                 }
                 uploadMessage = filePathCallback;
 
-                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
+                // Check for storage permission
+                if (!hasStoragePermission()) {
+                    requestStoragePermission();
                     return false;
                 }
 
                 Intent intent = fileChooserParams.createIntent();
-                startActivityForResult(intent, FILE_CHOOSER_RESULT_CODE);
+                try {
+                    startActivityForResult(intent, FILE_CHOOSER_RESULT_CODE);
+                } catch (ActivityNotFoundException e) {
+                    uploadMessage = null;
+                    Toast.makeText(MainActivity.this, "Cannot open file chooser", Toast.LENGTH_LONG).show();
+                    return false;
+                }
                 return true;
             }
+
         });
     }
 
     private boolean hasStoragePermission() {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        }
     }
 
+
+//    private boolean hasStoragePermission() {
+//        return ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+//    }
+
     private void requestStoragePermission() {
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_STORAGE_PERMISSION);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.READ_MEDIA_IMAGES,
+                    Manifest.permission.READ_MEDIA_VIDEO,
+                    Manifest.permission.READ_MEDIA_AUDIO
+            }, REQUEST_STORAGE_PERMISSION);
+        } else {
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+            }, REQUEST_STORAGE_PERMISSION);
+        }
     }
+
+//    private void requestStoragePermission() {
+//        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_STORAGE_PERMISSION);
+//    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == REQUEST_STORAGE_PERMISSION) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted, handle the download
-            } else {
-                Toast.makeText(this, "Storage permission is required to download files.", Toast.LENGTH_SHORT).show();
+            if (grantResults.length > 0) {
+                boolean allPermissionsGranted = true;
+                for (int grantResult : grantResults) {
+                    if (grantResult != PackageManager.PERMISSION_GRANTED) {
+                        allPermissionsGranted = false;
+                        break;
+                    }
+                }
+
+                if (allPermissionsGranted) {
+                    // Permission granted, handle the action that required permission
+                } else {
+                    Toast.makeText(this, "Storage permission is required.", Toast.LENGTH_SHORT).show();
+                }
             }
         }
     }
+
+
+//    @Override
+//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+//
+//        if (requestCode == REQUEST_STORAGE_PERMISSION) {
+//            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//                // Permission granted, handle the download
+//            } else {
+//                Toast.makeText(this, "Storage permission is required to download files.", Toast.LENGTH_SHORT).show();
+//            }
+//        }
+//    }
 
     private void handleDataUriDownload(String base64Uri) {
         byte[] decodedData = decodeBase64Data(base64Uri);
